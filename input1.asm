@@ -1,9 +1,16 @@
-; Sample Assembly Program
+START 100
 
-START   MOV AX, BX   ; Move BX to AX
-        ADD AX, 5    ; Add immediate value
-        SUB BX, AX   ; Subtract AX from BX
-LOOP:   CMP AX, 0    ; Compare AX with zero
-        JMP LOOP     ; Jump to LOOP
-        MUL CX       ; Multiply AX with CX
-        END
+MAIN:   MOV A, B
+        ADD A, =5
+        SUB B, =10
+        CMP A, B
+        JMP LOOP
+
+LOOP:   MUL X, Y
+        XOR X, =’Z’
+        AND Y, A
+        OR A, =100
+        RESW 1
+        AGAIN: DC =25
+
+END
