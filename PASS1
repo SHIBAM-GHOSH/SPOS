@@ -1,0 +1,136 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+// Class to represent an opcode (MOT or POT)
+class OpcodeEntry {
+public:
+    string name;          // Opcode name
+    string type;          // "MOT" or "POT"
+    string registerType;  // "RR", "RX", etc.
+    string registerSize;  // e.g., "4 bytes", "8 bytes", or "-"
+
+    OpcodeEntry(string n, string t, string rt, string rs)
+        : name(n), type(t), registerType(rt.empty() ? "-" : rt), registerSize(rs.empty() ? "-" : rs) {}
+};
+
+// MOT: Machine Opcode Table (name → {regType, regSize in bytes})
+unordered_map<string, pair<string, string>> MOT = {
+    {"MOV", {"RR", "4 bytes"}},
+    {"ADD", {"RR", "4 bytes"}},
+    {"SUB", {"RR", "4 bytes"}},
+    {"MUL", {"RR", "4 bytes"}},
+    {"DIV", {"RR", "4 bytes"}},
+    {"JMP", {"RX", "4 bytes"}},
+    {"CMP", {"RR", "4 bytes"}},
+    {"AND", {"RR", "4 bytes"}},
+    {"OR",  {"RR", "4 bytes"}},
+    {"XOR", {"RR", "4 bytes"}}
+}; // <-- MISSING SEMICOLON FIXED
+
+// POT: Pseudo Opcode Table
+vector<string> POT = { "START", "END", "EQU", "ORG", "DS", "DC", "RESW", "RESB" };
+
+// Tables
+vector<string> labelTable;
+vector<OpcodeEntry> opcodeTable;
+
+// Trim whitespace from both ends
+string trim(string str) {
+    while (!str.empty() && isspace(str.front())) str.erase(str.begin());
+    while (!str.empty() && isspace(str.back())) str.pop_back();
+    return str;
+}
+
+// Check if opcode already exists in table
+bool isOpcodePresent(const string& name) {
+    for (const auto& entry : opcodeTable)
+        if (entry.name == name) return true;
+    return false;
+}
+
+// Display Label Table
+void displayLabels() {
+    cout << "\nLabel Table (LT)\n";
+    cout << "S.No.\tLabel\n";
+    for (size_t i = 0; i < labelTable.size(); ++i)
+        cout << (i + 1) << "\t" << labelTable[i] << "\n";
+    cout << "Total Labels: " << labelTable.size() << "\n";
+}
+
+// Display Opcode Table
+void displayOpcodeTable() {
+    cout << "\nOpcode Table (MOT + POT)\n";
+    cout << "S.No.\tName\tType\tRegType\tRegSize\n";
+    int index = 1;
+    int motCount = 0, potCount = 0;
+
+    for (const auto& entry : opcodeTable) {
+        cout << index++ << "\t" << entry.name << "\t" << entry.type << "\t"
+             << entry.registerType << "\t" << entry.registerSize << "\n";
+
+        if (entry.type == "MOT") motCount++;
+        else potCount++;
+    }
+
+    cout << "Total MOT entries: " << motCount << "\n";
+    cout << "Total POT entries: " << potCount << "\n";
+}
+
+int main() {
+    string filename;
+    cout << "Enter input ASM filename: ";
+    cin >> filename;
+
+    ifstream infile(filename);
+    if (!infile) {
+        cerr << "Error: Cannot open file " << filename << "\n";
+        return 1;
+    }
+
+    string line;
+    while (getline(infile, line)) {
+        size_t commentPos = line.find(';');
+        if (commentPos != string::npos)
+            line = line.substr(0, commentPos);
+
+        line = trim(line);
+        if (line.empty()) continue;
+
+        // Tokenize line
+        istringstream iss(line);
+        vector<string> tokens;
+        string word;
+        while (iss >> word) tokens.push_back(word);
+        if (tokens.empty()) continue;
+
+        // Handle labels
+        if (tokens[0].back() == ':') {
+            string label = tokens[0].substr(0, tokens[0].length() - 1);
+            labelTable.push_back(label);
+            tokens.erase(tokens.begin());
+        }
+
+        // Handle opcodes
+        if (!tokens.empty()) {
+            string opcode = tokens[0];
+            transform(opcode.begin(), opcode.end(), opcode.begin(), ::toupper);
+
+            if (!isOpcodePresent(opcode)) {
+                if (MOT.find(opcode) != MOT.end()) {
+                    string regType = MOT[opcode].first;
+                    string regSize = MOT[opcode].second;
+                    opcodeTable.emplace_back(opcode, "MOT", regType, regSize);
+                } else if (find(POT.begin(), POT.end(), opcode) != POT.end()) {
+                    opcodeTable.emplace_back(opcode, "POT", "-", "-");
+                }
+            }
+        }
+    }
+
+    infile.close();
+
+    displayLabels();
+    displayOpcodeTable();
+
+    return 0;
+}
