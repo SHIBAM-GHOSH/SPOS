@@ -25,14 +25,17 @@ unordered_map<string, pair<string, string>> MOT = {
     {"AND", {"RR", "4 bytes"}},
     {"OR",  {"RR", "4 bytes"}},
     {"XOR", {"RR", "4 bytes"}}
-}; // <-- MISSING SEMICOLON FIXED
+};
 
 // POT: Pseudo Opcode Table
-vector<string> POT = { "START", "END", "EQU", "ORG", "DS", "DC", "RESW", "RESB" };
+vector<string> POT = {"START", "END", "EQU", "ORG", "DS", "DC", "RESW", "RESB"};
 
 // Tables
 vector<string> labelTable;
-vector<OpcodeEntry> opcodeTable;
+vector<OpcodeEntry> motTable;
+vector<OpcodeEntry> potTable;
+set<string> symbolTable;
+set<string> literalTable;
 
 // Trim whitespace from both ends
 string trim(string str) {
@@ -41,9 +44,11 @@ string trim(string str) {
     return str;
 }
 
-// Check if opcode already exists in table
+// Check if opcode already exists in MOT or POT table
 bool isOpcodePresent(const string& name) {
-    for (const auto& entry : opcodeTable)
+    for (const auto& entry : motTable)
+        if (entry.name == name) return true;
+    for (const auto& entry : potTable)
         if (entry.name == name) return true;
     return false;
 }
@@ -57,23 +62,45 @@ void displayLabels() {
     cout << "Total Labels: " << labelTable.size() << "\n";
 }
 
-// Display Opcode Table
-void displayOpcodeTable() {
-    cout << "\nOpcode Table (MOT + POT)\n";
-    cout << "S.No.\tName\tType\tRegType\tRegSize\n";
-    int index = 1;
-    int motCount = 0, potCount = 0;
+// Display MOT Table
+void displayMOT() {
+    cout << "\nMachine Opcode Table (MOT)\n";
+    cout << "S.No.\tName\tRegType\tRegSize\n";
+    for (size_t i = 0; i < motTable.size(); ++i)
+        cout << (i + 1) << "\t" << motTable[i].name << "\t" << motTable[i].registerType << "\t" << motTable[i].registerSize << "\n";
+    cout << "Total MOT entries: " << motTable.size() << "\n";
+}
 
-    for (const auto& entry : opcodeTable) {
-        cout << index++ << "\t" << entry.name << "\t" << entry.type << "\t"
-             << entry.registerType << "\t" << entry.registerSize << "\n";
+// Display POT Table
+void displayPOT() {
+    cout << "\nPseudo Opcode Table (POT)\n";
+    cout << "S.No.\tName\n";
+    for (size_t i = 0; i < potTable.size(); ++i)
+        cout << (i + 1) << "\t" << potTable[i].name << "\n";
+    cout << "Total POT entries: " << potTable.size() << "\n";
+}
 
-        if (entry.type == "MOT") motCount++;
-        else potCount++;
-    }
+// Display Symbol Table
+void displaySymbols() {
+    cout << "\nSymbol Table\n";
+    int i = 1;
+    for (const auto& sym : symbolTable)
+        cout << i++ << "\t" << sym << "\n";
+    cout << "Total Symbols: " << symbolTable.size() << "\n";
+}
 
-    cout << "Total MOT entries: " << motCount << "\n";
-    cout << "Total POT entries: " << potCount << "\n";
+// Display Literal Table
+void displayLiterals() {
+    cout << "\nLiteral Table\n";
+    int i = 1;
+    for (const auto& lit : literalTable)
+        cout << i++ << "\t" << lit << "\n";
+    cout << "Total Literals: " << literalTable.size() << "\n";
+}
+
+// Check if token is a literal
+bool isLiteral(const string& token) {
+    return token.size() > 1 && token[0] == '=';
 }
 
 int main() {
@@ -110,19 +137,35 @@ int main() {
             tokens.erase(tokens.begin());
         }
 
-        // Handle opcodes
-        if (!tokens.empty()) {
-            string opcode = tokens[0];
-            transform(opcode.begin(), opcode.end(), opcode.begin(), ::toupper);
+        if (tokens.empty()) continue;
 
-            if (!isOpcodePresent(opcode)) {
-                if (MOT.find(opcode) != MOT.end()) {
-                    string regType = MOT[opcode].first;
-                    string regSize = MOT[opcode].second;
-                    opcodeTable.emplace_back(opcode, "MOT", regType, regSize);
-                } else if (find(POT.begin(), POT.end(), opcode) != POT.end()) {
-                    opcodeTable.emplace_back(opcode, "POT", "-", "-");
-                }
+        string opcode = tokens[0];
+        transform(opcode.begin(), opcode.end(), opcode.begin(), ::toupper);
+
+        // Add to MOT or POT tables
+        if (!isOpcodePresent(opcode)) {
+            if (MOT.find(opcode) != MOT.end()) {
+                string regType = MOT[opcode].first;
+                string regSize = MOT[opcode].second;
+                motTable.emplace_back(opcode, "MOT", regType, regSize);
+            } else if (find(POT.begin(), POT.end(), opcode) != POT.end()) {
+                potTable.emplace_back(opcode, "POT", "-", "-");
+            }
+        }
+
+        // Parse operands (symbols and literals)
+        for (size_t i = 1; i < tokens.size(); ++i) {
+            string tok = tokens[i];
+
+            // Remove ',' if present
+            if (!tok.empty() && tok.back() == ',')
+                tok.pop_back();
+
+            if (isLiteral(tok)) {
+                literalTable.insert(tok);
+            } else if (MOT.find(tok) == MOT.end() &&
+                       find(POT.begin(), POT.end(), tok) == POT.end()) {
+                symbolTable.insert(tok);
             }
         }
     }
@@ -130,7 +173,10 @@ int main() {
     infile.close();
 
     displayLabels();
-    displayOpcodeTable();
+    displayMOT();
+    displayPOT();
+    displaySymbols();
+    displayLiterals();
 
     return 0;
 }
